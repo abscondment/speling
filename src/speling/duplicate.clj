@@ -1,6 +1,7 @@
 (ns speling.duplicate
   (:use [speling core])
-  (:require [clojure.java.jdbc :as sql]))
+  (:require [clojure.java.jdbc :as sql]
+            [clojure.set :as set]))
 
 (def db {:subprotocol "mysql"
          :subname "//127.0.0.1:3306/paperkarma_development"
@@ -21,8 +22,8 @@
 (defn names-map []
   (select-name-map ["SELECT id, name FROM mailers WHERE flags & 32 = 0"]))
 
-(defn names-small-map []
-  (select-name-map ["SELECT id, name FROM mailers WHERE flags & 32 = 0 LIMIT 1000"]))
+(defn names-map-sized [limit]
+  (select-name-map ["SELECT id, name FROM mailers WHERE flags & 32 = 0 LIMIT ?" limit]))
 
 (defn ngrams
   ([text] (ngrams text 5))
@@ -44,16 +45,49 @@
     (transient {})
     name-map)))
 
+(defn- delete-if [m pred]
+  (select-keys m
+   (for [[k v :as p] m :when (pred p)] k)))
+
+
+(defn filtered-name-frequencies
+  ([name-freqs] (filtered-name-frequencies name-freqs 1))
+  ([name-freqs min-limit]
+     (delete-if name-freqs (fn [[k v]] (> (count v) min-limit)))))
+
 ;; TODO: can this be made faster with transients?
-(defn co-occurring-ids-map [name-map]
-  (reduce
-   (fn [imap [ngram ids]]
-     (apply merge-with
-            (fn [list-a list-b] (merge-with + list-a list-b))
-            imap
-            (map (fn [id] {id (zipmap (disj ids id) (repeat 1)) }) ids)))
-   {}
-   (name-frequencies name-map)))
+(defn co-occurring-ids-map
+  ([name-map] (co-occurring-ids-map name-map 3))
+  ([name-map min-frequency]
+     (let [groups (-> name-map
+                      (name-frequencies)
+                      (filtered-name-frequencies min-frequency)
+                      (vals))
+           ids (->> groups (apply concat) (distinct))]
+       (loop [pairs groups
+              gmap (zipmap ids (repeat {}))]
+         (if (empty? pairs) gmap
+             (recur (rest pairs)
+                    (reduce
+                     (fn [m p] (update-in m p (fn [v] (inc (or v 0)))))
+                     gmap
+                     (for [a (first pairs)
+                           b (first pairs)
+                           :when (not= a b)] [a b]))))))))
+
+(defn best-matches
+  ([name-map] (best-matches name-map 10))
+  ([name-map n]
+     (map
+      (fn [[id matches]] [id (take n (reverse (sort-by last matches)))])
+      (co-occurring-ids-map name-map 1))))
+
+;; old version
+(comment
+  (apply merge-with
+         (fn [list-a list-b] (merge-with + list-a list-b))
+         imap
+         (map (fn [id] {id (zipmap (disj ids id) (repeat 1)) }) ids)))
 
 (comment
  (time (pprint
@@ -103,21 +137,7 @@
                      (Math/abs (- ad bd)))))
          (quot (+ (count freqs-a) (count freqs-b)) 2))))))
 
-
-(comment
-  (let [all-ngrams
-        (map names
-             ()
-             )
-        ])
-
-  (time
-   (pprint
-    (pmap #(list
-            %
-            (take 100
-                  (rest
-                   (sort-by last
-                            (map (fn [n] [n (ngramdiff % n 150)]) names)))))
-          (take 5 (drop 2000 new-names)))))
-  )
+(defn -main []
+  (do
+    (for [c [100 1000 2500 5000 7500 10000 20000 35000 70000]]
+      (time (println c "->" (count (doall (co-occurring-ids-map (names-map-sized c)))))))))
