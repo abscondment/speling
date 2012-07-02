@@ -1,5 +1,10 @@
 (ns speling.core
-  (:use [clojure.string :only [split]]))
+  (:require [clojure.string :as str]))
 
-(defn words [text] (clojure.string/split (.toLowerCase text) #"[^a-z0-9]+"))
-
+(defn words [text]
+  (->
+   text
+   (str/lower-case)
+   (str/replace #"[']+" "'")
+   (str/replace #"[\-]+" "-")
+   (str/split #"[^a-z0-9'\-]+([^a-z0-9][^a-z0-9'\-]?)*")))

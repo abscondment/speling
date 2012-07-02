@@ -2,5 +2,7 @@
   (:use [speling.core] :reload-all)
   (:use [clojure.test]))
 
-(deftest replace-me ;; FIXME: write
-  (is false))
+(deftest words-test
+  (is (= (words "I can't imagine you without this.Nikolai Rimsky-Korsakov$$$")
+         ["i" "can't" "imagine" "you" "without" "this" "nikolai" "rimsky-korsakov"])))
+
