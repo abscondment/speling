@@ -110,9 +110,10 @@
 
 (defn -main []
   (do
-    (for [c [100 1000 2500 5000 7500 10000 20000 35000 70000]]
-      (time (let [cm (doall (best-matches (names-map-sized c)))]
+    (for [c [100 35000 70000]]
+      (time
+       (let [cm (doall (best-matches (names-map-sized c) 5 Math/PI))]
               (do
-                (println c "->" (count cm))
+                (println "\n\n\n" c "->" (count cm))
                 (pprint (take 5 cm))
                 (println  "...")))))))
