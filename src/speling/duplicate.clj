@@ -55,117 +55,43 @@
   ([name-freqs min-limit]
      (delete-if name-freqs (fn [[k v]] (> (count v) min-limit)))))
 
-(defn ids-to-pairs-map [name-map min-frequency]
-  (let [lfirst (comp last first)]
-    (loop [pairs (-> name-map
-                     (name-frequencies)
-                     (filtered-name-frequencies min-frequency)
-                     (seq))
-           vmap (transient {})]
-      (if (empty? pairs) (persistent! vmap)
-          (let [ngram (ffirst pairs)
-                v (count ngram)
-                ids (lfirst pairs)]
-            (recur (rest pairs)
-                   (reduce
-                    (fn [m [id other]]
-                      (assoc! m id (conj (get m id []) [other v])))
-                    vmap
-                    (for [x ids y ids :when (not= x y)] [x y]))))))))
 
-(defn nids-to-pairs-map [name-map min-frequency]
-  (map
-   
-   (-> name-map
-       (name-frequencies)
-       (filtered-name-frequencies min-frequency)))
-  )
-
-(defn doit
-  ([fnmap] (doit fnmap 100))
-  ([fnmap maxn]
-     (dotimes [_ 5]
-       (time
-        (let [idfn (comp (names-map) first)]
-          (doall
-           (pmap
-            #(loop [names %]
-               (if (empty? names)
-                 'done
-                 (do
-                   (count
-                    (map idfn
-                         (reverse
-                          (sort-by last
-                                   (filter identity
-                                           (map
-                                            (fn [s] (if (> (count s) 3) [(first s) (count s)]))
-                                            (partition-by identity
-                                                          (sort
-                                                           (apply concat
-                                                                  (filter identity
-                                                                          (map fnmap
-                                                                               (ngrams (first names)))))))))))))
-                   (recur (rest names)))))
-            (partition-all (inc (.availableProcessors (Runtime/getRuntime)))
-                           (map last (take maxn (names-map)))))))))))
+(defn compare-names [f nmap]
+  (let [idfn (comp nmap first)
+        fnmap (-> nmap
+                  (name-frequencies)
+                  (filtered-name-frequencies 3))]
+    (doall
+     (pmap
+      #(doseq [[id name] %]
+         (let [matches (->> (ngrams name)
+                            (map fnmap)
+                            (filter identity)
+                            (apply concat)
+                            (sort)
+                            (partition-by identity)
+                            (map (fn [s] (if (> (count s) 3) [(first s) (count s)])))
+                            (filter identity)
+                            (sort-by last)
+                            (reverse))]
+           (f id name matches)))
+      (partition-all (/ (count nmap) (inc (.availableProcessors (Runtime/getRuntime)))) nmap)))))
 
 (comment
-
-  (def fnmap
-    (-> (names-map)
-        (name-frequencies)
-        (filtered-name-frequencies 3))))
-
-;; TODO: can this be made faster with transients?
-(defn co-occurring-ids-map
-  ([name-map] (co-occurring-ids-map name-map 3))
-  ([name-map min-frequency]
-     (let [idpm (ids-to-pairs-map name-map min-frequency)]
- (loop [ids (keys idpm)
-        idpm (transient idpm)]
-   (if (empty? ids) (persistent! idpm)
-       (let [id (first ids)]
-         (recur
-          (rest ids)
-          (assoc! idpm id
-                  (pmap
-                   (fn [gr] [ (ffirst gr) (reduce + (map last gr))])
-                   (->> (get idpm id '())
-                        (sort-by first)
-                        (partition-by first))))
-          )))))))
-
-(defn best-matches
-  ([name-map] (best-matches name-map 10 (/ Math/PI 2.0)))
-  ([name-map n-matches min-weight]
-     (map
-      (fn [[id matches]]
-        [(name-map id)
-         (take n-matches
-          (reverse
-           (sort-by last
-            (filter (fn [[k v]] (> v min-weight))
-                    (map (fn [[k v]] [(name-map k) (/ v (count (name-map k)))])
-                         matches)))))])
-      (co-occurring-ids-map name-map 1))))
+ (defn best-matches
+   ([name-map] (best-matches name-map 10 (/ Math/PI 2.0)))
+   ([name-map n-matches min-weight]
+      (map
+       (fn [[id matches]]
+         [(name-map id)
+          (take n-matches
+                (reverse
+                 (sort-by last
+                          (filter (fn [[k v]] (> v min-weight))
+                                  (map (fn [[k v]] [(name-map k) (/ v (count (name-map k)))])
+                                       matches)))))])
+       (co-occurring-ids-map name-map 1)))))
 
 (defn -main []
-  (let [fnmap (-> (names-map)
-                  (name-frequencies)
-                  (filtered-name-frequencies 3)
-                  (doall))
-        _ (println "Starting test...")]
-    (doit fnmap 1000000)))
-
-(comment
-  (for [c (range 100 60100 5000)]
-    (do
-      (time
-       (println c "=>"
-        (-> c
-            (names-map-sized)
-            (co-occurring-ids-map)
-            (doall)
-            (count))))
-      c)))
+  (time
+   (compare-names (fn [a b c]) (names-map))))
