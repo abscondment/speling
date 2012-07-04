@@ -55,7 +55,6 @@
   ([name-freqs min-limit]
      (delete-if name-freqs (fn [[k v]] (> (count v) min-limit)))))
 
-
 (defn compare-names [f nmap]
   (let [idfn (comp nmap first)
         fnmap (-> nmap
@@ -64,6 +63,9 @@
     (doall
      (pmap
       #(doseq [[id name] %]
+         ;;
+         ;; TODO: weigh each match by the ngram length
+         ;;
          (let [matches (->> (ngrams name)
                             (map fnmap)
                             (filter identity)
@@ -93,5 +95,9 @@
        (co-occurring-ids-map name-map 1)))))
 
 (defn -main []
-  (time
-   (compare-names (fn [a b c]) (names-map))))
+(do
+ (time
+  (compare-names (fn [id name matches]
+                   (do (spit (str id ".match") (-> matches (vec) (str)))))
+                 (names-map)))
+ (shutdown-agents)))
