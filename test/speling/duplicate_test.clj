@@ -4,16 +4,17 @@
         [clojure.pprint]))
 
 (defn- collect-matches [name-map]
-  (let [matches (atom {})
+  (let [matches (agent {})
         collector (fn [id name m]
                     (if (not-empty m)
                       (let [sorted-ids (->> m (map first) (sort))]
-                        (swap! matches assoc id sorted-ids))))]
+                        (send matches assoc id sorted-ids))))]
     (compare-names name-map
                    collector
                    {:freq-filter-level 1
                     :count-filter-level 1})
-    @matches))
+    (await matches)
+    (deref matches)))
 
 
 (deftest simple-matches
