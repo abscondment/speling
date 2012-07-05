@@ -58,7 +58,10 @@
 (defn compare-names
   ([nmap f] (compare-names nmap f {}))
   ([nmap f opts]
-     (let [count-filter-level (get opts :count-filter-level 3)
+     (let [n-threads (get opts :n-threads
+                          (/ (count nmap)
+                             (inc (.availableProcessors (Runtime/getRuntime)))))
+           weight-filter-level (get opts :weight-filter-level 1)
            freq-filter-level  (get opts :freq-filter-level 3)
            idfn (comp nmap first)
            fnmap (-> nmap
@@ -67,42 +70,31 @@
        (doall
         (pmap
          #(doseq [[id name] %]
-            ;;
-            ;; TODO: weigh each match by the ngram length
-            ;;
-            (let [matches (->> (ngrams name)
-                               (map fnmap)
-                               (filter identity)
+            (let [name-weight (count name)
+                  matches (->> (ngrams name)
+                               (map
+                                (fn [ngram]
+                                  (for [id (fnmap ngram)]
+                                    [id (count ngram)])))
+                               (filter not-empty)
                                (apply concat)
-                               (sort)
-                               (partition-by identity)
-                               (map (fn [s] (if (> (count s) count-filter-level) [(first s) (count s)])))
-                               (filter identity)
-                               (sort-by last)
-                               (reverse))]
+                               (sort-by first)
+                               (partition-by first)
+                               (map
+                                (fn [pairs]
+                                  [(ffirst pairs)
+                                   (->> pairs (map last) (reduce +) ((fn [w] (/ w name-weight))))]))
+                               (filter
+                                (fn [[id weight]]
+                                  (> weight weight-filter-level))))]
               (f id name matches)))
-         (partition-all (/ (count nmap) (inc (.availableProcessors (Runtime/getRuntime)))) nmap)))
+         (partition-all n-threads nmap)))
        nil)))
-
-(comment
-  (defn best-matches
-    ([name-map] (best-matches name-map 10 (/ Math/PI 2.0)))
-    ([name-map n-matches min-weight]
-       (map
-        (fn [[id matches]]
-          [(name-map id)
-           (take n-matches
-                 (reverse
-                  (sort-by last
-                           (filter (fn [[k v]] (> v min-weight))
-                                   (map (fn [[k v]] [(name-map k) (/ v (count (name-map k)))])
-                                        matches)))))])
-        (co-occurring-ids-map name-map 1)))))
 
 (defn -main []
   (do
     (time
-     (compare-names (fn [id name matches]
-                      (do (spit (str "output/" id ".match") (-> matches (vec) (str)))))
-                    (names-map)))
+     (compare-names (names-map)
+                    (fn [id name matches]
+                      (do (spit (str "output/" id ".match") (-> matches (vec) (str)))))))
     (shutdown-agents)))

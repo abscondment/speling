@@ -11,8 +11,7 @@
                         (send matches assoc id sorted-ids))))]
     (compare-names name-map
                    collector
-                   {:freq-filter-level 1
-                    :count-filter-level 1})
+                   {:freq-filter-level 1 :weight-filter-level 0})
     (await matches)
     (deref matches)))
 
