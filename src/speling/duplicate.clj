@@ -55,33 +55,32 @@
            fnmap (-> nmap
                      (name-frequencies opts)
                      (filtered-name-frequencies freq-filter-level))]
-       (doall
-        (pmap
-         (fn [groups]
-           (doseq [[id name] groups]
-             (let [name-weight (count name)
-                   matches (->> (ngrams name)
-                                (map
-                                 (fn [ngram]
-                                   (for [id (fnmap ngram)]
-                                     [id (count ngram)])))
-                                (filter not-empty)
-                                (apply concat)
-                                (sort-by first)
-                                (partition-by first)
-                                (map
-                                 (fn [pairs]
-                                   [(ffirst pairs)
-                                    ;; TODO:
-                                    ;; Right now, we're scaling ngram *size* by the name size.
-                                    ;;
-                                    ;; We should also test using TF*IDF for the given ngram.
-                                    (->> pairs (map last) (reduce +) ((fn [w] (/ w name-weight))))]))
-                                (filter
-                                 (fn [[id weight]]
-                                   (> weight weight-filter-level))))]
-               (f id name matches))))
-         (partition-all n-threads nmap)))
+       (pmap
+        (fn [groups]
+          (doseq [[id name] groups]
+            (let [name-weight (count name)
+                  matches
+                  (->> (ngrams name)
+                       (map (fn [ngram]
+                              (for [id (fnmap ngram)]
+                                [id (count ngram)])))
+                       (filter not-empty)
+                       (apply concat)
+                       (sort-by first)
+                       (partition-by first)
+                       (map
+                        (fn [pairs]
+                          [(ffirst pairs)
+                           ;; TODO:
+                           ;; Right now, we're scaling ngram *size* by the name size.
+                           ;;
+                           ;; We should also test using TF*IDF for the given ngram.
+                           (->> pairs (map last) (reduce +) ((fn [w] (/ w name-weight))))]))
+                       (filter
+                        (fn [[id weight]]
+                          (> weight weight-filter-level))))]
+              (f id name matches))))
+        (partition-all n-threads nmap))
        nil)))
 
 
