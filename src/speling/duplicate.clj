@@ -81,7 +81,8 @@
                                (sort-by last)
                                (reverse))]
               (f id name matches)))
-         (partition-all (/ (count nmap) (inc (.availableProcessors (Runtime/getRuntime)))) nmap))))))
+         (partition-all (/ (count nmap) (inc (.availableProcessors (Runtime/getRuntime)))) nmap)))
+       nil)))
 
 (comment
   (defn best-matches
