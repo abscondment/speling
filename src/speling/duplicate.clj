@@ -55,29 +55,33 @@
   ([name-freqs min-limit]
      (delete-if name-freqs (fn [[k v]] (> (count v) min-limit)))))
 
-(defn compare-names [f nmap]
-  (let [idfn (comp nmap first)
-        fnmap (-> nmap
-                  (name-frequencies)
-                  (filtered-name-frequencies 3))]
-    (doall
-     (pmap
-      #(doseq [[id name] %]
-         ;;
-         ;; TODO: weigh each match by the ngram length
-         ;;
-         (let [matches (->> (ngrams name)
-                            (map fnmap)
-                            (filter identity)
-                            (apply concat)
-                            (sort)
-                            (partition-by identity)
-                            (map (fn [s] (if (> (count s) 3) [(first s) (count s)])))
-                            (filter identity)
-                            (sort-by last)
-                            (reverse))]
-           (f id name matches)))
-      (partition-all (/ (count nmap) (inc (.availableProcessors (Runtime/getRuntime)))) nmap)))))
+(defn compare-names
+  ([nmap f] (compare-names nmap f {}))
+  ([nmap f opts]
+     (let [count-filter-level (get opts :count-filter-level 3)
+           freq-filter-level  (get opts :freq-filter-level 3)
+           idfn (comp nmap first)
+           fnmap (-> nmap
+                   (name-frequencies)
+                   (filtered-name-frequencies freq-filter-level))]
+     (doall
+      (pmap
+       #(doseq [[id name] %]
+          ;;
+          ;; TODO: weigh each match by the ngram length
+          ;;
+          (let [matches (->> (ngrams name)
+                             (map fnmap)
+                             (filter identity)
+                             (apply concat)
+                             (sort)
+                             (partition-by identity)
+                             (map (fn [s] (if (> (count s) count-filter-level) [(first s) (count s)])))
+                             (filter identity)
+                             (sort-by last)
+                             (reverse))]
+            (f id name matches)))
+       (partition-all (/ (count nmap) (inc (.availableProcessors (Runtime/getRuntime)))) nmap))))))
 
 (comment
  (defn best-matches
