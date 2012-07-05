@@ -83,6 +83,10 @@
                                (map
                                 (fn [pairs]
                                   [(ffirst pairs)
+                                   ;; TODO:
+                                   ;; Right now, we're scaling ngram *size* by the name size.
+                                   ;;
+                                   ;; We should also test using TF*IDF for the given ngram.
                                    (->> pairs (map last) (reduce +) ((fn [w] (/ w name-weight))))]))
                                (filter
                                 (fn [[id weight]]
