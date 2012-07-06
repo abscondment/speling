@@ -46,11 +46,13 @@
 (defn compare-names
   ([nmap f] (compare-names nmap f {}))
   ([nmap f opts]
-     (let [n-threads (get opts :n-threads
-                          (/ (count nmap)
-                             (inc (.availableProcessors (Runtime/getRuntime)))))
-           weight-filter-level (get opts :weight-filter-level 1)
+     (let [weight-filter-level (get opts :weight-filter-level 1)
            freq-filter-level  (get opts :freq-filter-level 3)
+           min-ngram (get opts :min-ngram 3)
+           max-ngram (get opts :max-ngram 7)
+           n-threads (get opts :n-threads
+                          (/ (count nmap)
+                             (inc (.availableProcessors (Runtime/getRuntime)))))          
            idfn (comp nmap first)
            fnmap (-> nmap
                      (name-frequencies opts)
@@ -60,7 +62,7 @@
          (fn [groups]
            (doseq [[id name] groups]
              (let [name-weight (count name)
-                   matches (->> (ngrams name)
+                   matches (->> (ngrams name min-ngram max-ngram)
                                 (map
                                  (fn [ngram]
                                    (for [id (fnmap ngram)]
