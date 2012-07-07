@@ -64,11 +64,11 @@
          (partition-all n-threads nmap)))
        nil)))
 
-
-(defn -main []
-  (do
-    (time
-     (compare-names (db/names-map)
-                    (fn [id name matches]
-                      (do (spit (str "output/" id ".match") (-> matches (vec) (str)))))))
-    (shutdown-agents)))
+(comment
+ (defn -main []
+   (do
+     (time
+      (compare-names (db/names-map)
+                     (fn [id name matches]
+                       (do (spit (str "output/" id ".match") (-> matches (vec) (str)))))))
+     (shutdown-agents))))
