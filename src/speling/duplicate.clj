@@ -1,30 +1,8 @@
 (ns speling.duplicate
   (:use [speling core]
         [clojure pprint])
-  (:require [clojure.java.jdbc :as sql]
+  (:require [speling.db :as db]
             [clojure.set :as set]))
-
-(def db {:subprotocol "mysql"
-         :subname "//33.33.33.33:3306/paperkarma_development"
-         :user "root"
-         :password nil})
-
-(defn- select-name-map [query-coll]
-  (sql/with-connection db
-    (sql/with-query-results rows
-      query-coll
-      (reduce
-       (fn [m row] (assoc m (:id row) (:name row)))
-       {} rows))))
-
-(defn- new-names-map []
-  (select-name-map ["SELECT m.id, m.name FROM (SELECT mailer_id FROM unsubscribes GROUP BY mailer_id HAVING count(*) < 3 AND count(*) > 0) u INNER JOIN mailers m ON m.id = u.mailer_id AND flags & 32 = 0"]))
-
-(defn- names-map []
-  (select-name-map ["SELECT id, name FROM mailers WHERE flags & 32 = 0"]))
-
-(defn- names-map-sized [limit]
-  (select-name-map ["SELECT id, name FROM mailers WHERE flags & 32 = 0 LIMIT ?" limit]))
 
 (defn- name-frequencies [name-map opts]
   (let [min-ngram (get opts :min-ngram 3)
@@ -90,7 +68,7 @@
 (defn -main []
   (do
     (time
-     (compare-names (names-map)
+     (compare-names (db/names-map)
                     (fn [id name matches]
                       (do (spit (str "output/" id ".match") (-> matches (vec) (str)))))))
     (shutdown-agents)))
