@@ -7,5 +7,4 @@
                  [ring/ring-jetty-adapter "1.1.1"]
                  [ring-json-params "0.1.3"]
                  [compojure "1.1.0"]
-                 [cheshire "4.0.0"]
-                 ])
+                 [cheshire "4.0.0"]])
