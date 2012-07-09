@@ -5,18 +5,19 @@
   (:require [speling.db :as db]
             [cheshire.core :as json]))
 
-(def options
-  {})
+(def options {})
 
 (def duplicates-values
   (let [nmap (names-map)
         fnmap (names-map-to-frequencies-map nmap options)]
-    {:nmap nmap :fnmap fnmap}))
+    (atom {:nmap nmap :fnmap fnmap})))
 
-(defn duplicates-for [name]
-  (compare-names
-   (get duplicates-values :nmap)
-   (get duplicates-values :fnmap)))
+(defn duplicates-for [id]
+  (let [dvm @duplicates-values
+        fnmap (get dvm :nmap)
+        nmap (get dvm :nmap)
+        name (get nmap id)]
+    (compute-matches name nmap fnmap options)))
 
 (defn json-response [data & [status]]
   {:status (or status 200)
@@ -24,11 +25,9 @@
    :body (json/generate-string data)})
 
 (defroutes handler
-  (GET "/" []
-       (json-response {"hello" "world"}))
-
-  (PUT "/" [name]
-       (json-response {"hello" name})))
+  (GET "/duplicates/:id" [id]
+       (json-response
+        (duplicates-for id))))
 
 (def app
   (-> handler
