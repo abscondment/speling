@@ -17,6 +17,9 @@
 (defn new-names-map []
   (select-name-map ["SELECT m.id, m.name FROM (SELECT mailer_id FROM unsubscribes GROUP BY mailer_id HAVING count(*) < 3 AND count(*) > 0) u INNER JOIN mailers m ON m.id = u.mailer_id AND flags & 32 = 0"]))
 
+(defn active-names-map []
+  (select-name-map ["SELECT id, name FROM mailers WHERE active = 1 AND flags & 32 = 0"]))
+
 (defn names-map []
   (select-name-map ["SELECT id, name FROM mailers WHERE flags & 32 = 0"]))
 

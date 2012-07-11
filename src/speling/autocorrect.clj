@@ -21,12 +21,12 @@
                      (inc (get model (first features) 1)))))))
 
 
-(comment (def NWORDS (train (words (slurp "small.txt")))))
-(comment (def NWORDS (train (words (slurp "big.txt")))))
-(comment (def NWORDS (train (words (slurp "/usr/share/dict/words")))))
+(comment (def NWORDS (train (words (slurp "small.txt"))))
+         (def NWORDS (train (words (slurp "big.txt"))))
+         (def NWORDS (train (words (slurp "/usr/share/dict/words")))))
 
 (def NWORDS
-  (->> (db/names-map)
+  (->> (db/active-names-map)
        (map last)
        (mapcat words)
        (filter not-empty)
