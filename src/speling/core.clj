@@ -3,7 +3,6 @@
 
 (defn real-pmap [f s] (map deref (doall (map #(future (f %)) s))))
 
-
 (defn delete-if [m pred]
   (select-keys m
    (for [[k v :as p] m :when (pred p)] k)))
@@ -25,3 +24,11 @@
               (for [n (range min-n (inc max-n))]
                 (partition n 1 %)))
       (words text))))
+
+(defmacro or-ne
+  "Like or, but treats empty forms as if they have a logical false value."
+  ([] nil)
+  ([x] x)
+  ([x & next]
+     `(let [or# ~x]
+        (if (and or# (not-empty or#)) or# (or-ne ~@next)))))
