@@ -1,6 +1,7 @@
 (ns speling.autocorrect
-  (:use [speling core]))
-
+  (:use [speling core])
+  (:require [speling.db :as db]))
+  
 ;; Implementation of the algorithm described by Peter Norvig
 ;; at http://norvig.com/spell-correct.html
 
@@ -22,9 +23,16 @@
 
 (comment (def NWORDS (train (words (slurp "small.txt")))))
 (comment (def NWORDS (train (words (slurp "big.txt")))))
-(def NWORDS (train (words (slurp "/usr/share/dict/words"))))
+(comment (def NWORDS (train (words (slurp "/usr/share/dict/words")))))
 
-(def alphabet (seq "abcdefghijklmnopqrstuvwxyz"))
+(def NWORDS
+  (->> (db/names-map)
+       (map last)
+       (mapcat words)
+       (filter not-empty)
+       (train)))
+
+(def alphabet (seq "abcdefghijklmnopqrstuvwxyz1234567890"))
 
 (defn edits1 [word]
   (let [splits (map #(split-at % word) (range (count word)))
@@ -46,10 +54,14 @@
 
 (defn correct [word]
   (let [candidates (or-ne (known [word])
-                        (known (edits1 word))
-                        (known-edits2 word))]
-    (->> candidates
-         (select-keys NWORDS)
-         (sort-by last)
-         (reverse)
-         (ffirst))))
+                          (known (edits1 word))
+                          (known-edits2 word))]
+    (or (->> candidates
+             (select-keys NWORDS)
+             (sort-by last)
+             (reverse)
+             (ffirst))
+        word)))
+
+(defn correct-phrase [s]
+  (map correct (words s)))
