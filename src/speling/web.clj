@@ -1,5 +1,5 @@
 (ns speling.web
-  (:use [speling duplicate db]
+  (:use [speling autocorrect duplicate]
         [compojure core]
         [ring.middleware json-params]
         [ring.adapter jetty])
@@ -10,7 +10,7 @@
 
 (def duplicates-values
   (atom
-   (let [nmap (names-map)
+   (let [nmap (db/names-map)
          fnmap (names-map-to-frequencies-map nmap options)]
      {:nmap nmap :fnmap fnmap})))
 
@@ -49,11 +49,14 @@
   (GET "/duplicates/:id" [id]
        (let [result (duplicates-for id)
              status (if (nil? result) 404 200)]
+         (json-response result status)))
+
+  (GET "/autocorrect/:phrase" [phrase]
+       (let [result (correct-phrase phrase)
+             status (if (nil? result) 404 200)]
          (json-response result status))))
 
-(def app
-  (-> handler
-      wrap-json-params))
+(def app (-> handler wrap-json-params))
 
 ;; TODO:
 ;;  * configuration (port, logging)
