@@ -13,9 +13,10 @@
 
 (defn train
   ([features] (train features 1))
-  ([features weight]
+  ([features weight] (train features weight {}))
+  ([features weight model]
      (loop [features features
-            model (transient {})]
+            model (transient model)]
        (if (empty? features)
          (persistent! model)
          (recur (rest features)
@@ -25,8 +26,8 @@
 
 (defn train-map [maps]
   (reduce
-   (fn [trained {count :count words :words}]
-     (merge-with + trained (train words count)))
+   (fn [model {count :count words :words}]
+     (train words count model))
    {} maps))
 
 (comment (def NWORDS (train (words (slurp "small.txt"))))

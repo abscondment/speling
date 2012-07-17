@@ -14,5 +14,8 @@
          {"foo" 4 "bar" 7 "baz" 10})))
 
 (deftest train-map-values
-  ;; TODO
-  (is (true? true)))
+  (is (= (train-map [{:words ["foo"] :count 1}])
+         {"foo" 2}))
+  (is (= (train-map  [{:words ["foo"] :count 1}
+                      {:words ["foo" "bar"] :count 5}])
+         {"foo" 7 "bar" 6})))
