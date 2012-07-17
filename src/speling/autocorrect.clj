@@ -1,6 +1,7 @@
 (ns speling.autocorrect
   (:use [speling core])
-  (:require [speling.db :as db]))
+  (:require [speling.db :as db]
+            [clojure.string :as string]))
   
 ;; Implementation of the algorithm described by Peter Norvig
 ;; at http://norvig.com/spell-correct.html
@@ -10,27 +11,41 @@
 ;;  * training should *allow* for some DB-specific weight
 ;;    to be applied at the word level
 
-(defn train [features]
-  (loop [features features
-         model (transient {})]
-    (if (empty? features)
-      (persistent! model)
-      (recur (rest features)
-             (assoc! model
-                     (first features)
-                     (inc (get model (first features) 1)))))))
+(defn train
+  ([features] (train features 1))
+  ([features weight]
+     (loop [features features
+            model (transient {})]
+       (if (empty? features)
+         (persistent! model)
+         (recur (rest features)
+                (assoc! model
+                        (first features)
+                        (+ weight (get model (first features) 1))))))))
 
+(defn train-map [maps]
+  (reduce
+   (fn [trained {count :count words :words}]
+     (merge-with + trained (train words count)))
+   {} maps))
 
 (comment (def NWORDS (train (words (slurp "small.txt"))))
          (def NWORDS (train (words (slurp "big.txt"))))
          (def NWORDS (train (words (slurp "/usr/share/dict/words")))))
 
 (def NWORDS
-  (->> (db/active-names-map)
+  (->> (db/active-names-counts-map)
        (map last)
-       (mapcat words)
-       (filter not-empty)
-       (train)))
+       (map
+        (fn [m]
+          (let [n (string/join " " (map (partial get m) [:name :url :email]))
+                c (get m :count)]
+            (if (not-empty n)
+              (assoc m
+                :count (if (zero? c) 1.0 (Math/log c))
+                :words ((comp remove-stopwords words) n))))))
+       (filter identity)
+       (train-map)))
 
 (def alphabet (seq "abcdefghijklmnopqrstuvwxyz1234567890"))
 
@@ -56,12 +71,15 @@
   (let [candidates (or-ne (known [word])
                           (known (edits1 word))
                           (known-edits2 word))]
-    (or (->> candidates
-             (select-keys NWORDS)
-             (sort-by last)
-             (reverse)
-             (ffirst))
-        word)))
+    (->> candidates
+         (select-keys NWORDS)
+         (sort-by last)
+         (reverse)
+         (first))))
 
 (defn correct-phrase [s]
-  (map correct (words s)))
+  (->> (words s)
+       (map correct)
+       (filter not-empty)
+       (sort-by last)
+       (reverse)))
