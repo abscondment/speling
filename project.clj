@@ -1,4 +1,4 @@
-(defproject speling "0.5.0-SNAPSHOT"
+(defproject readabl/speling "0.0.1"
   :description "Got speling?"
   :url "https://github.com/abscondment/speling"
   :license {:name "Eclipse Public License"
