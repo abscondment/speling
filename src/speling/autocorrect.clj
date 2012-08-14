@@ -1,6 +1,5 @@
 (ns speling.autocorrect
-  (:use [speling core])
-  (:require [speling.db :as db]))
+  (:use [speling core]))
   
 ;; Implementation of the algorithm described by Peter Norvig
 ;; at http://norvig.com/spell-correct.html
@@ -25,12 +24,14 @@
          (def NWORDS (train (words (slurp "big.txt"))))
          (def NWORDS (train (words (slurp "/usr/share/dict/words")))))
 
+
+;; TODO: supply a custom list of words
 (def NWORDS
-  (->> (db/active-names-map)
-       (map last)
+  (->> (slurp "/usr/share/dict/words")
        (mapcat words)
        (filter not-empty)
        (train)))
+
 
 (def alphabet (seq "abcdefghijklmnopqrstuvwxyz1234567890"))
 

@@ -1,8 +1,7 @@
 (ns speling.duplicate
   (:use [speling core]
         [clojure pprint])
-  (:require [speling.db :as db]
-            [clojure.set :as set]))
+  (:require [clojure.set :as set]))
 
 (defn- name-frequencies [name-map opts]
   (let [min-ngram (get opts :min-ngram 3)
@@ -71,12 +70,3 @@
              (f id name (compute-matches name nmap fnmap opts))))
          (partition-all n-threads nmap)))
        nil)))
-
-(comment
- (defn -main []
-   (do
-     (time
-      (compare-names (db/names-map)
-                     (fn [id name matches]
-                       (do (spit (str "output/" id ".match") (-> matches (vec) (str)))))))
-     (shutdown-agents))))
