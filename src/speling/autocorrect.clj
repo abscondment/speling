@@ -9,16 +9,24 @@
 ;;  * training should *allow* for some DB-specific weight
 ;;    to be applied at the word level
 
-(defn train [features]
-  (loop [features features
-         model (transient {})]
-    (if (empty? features)
-      (persistent! model)
-      (recur (rest features)
-             (assoc! model
-                     (first features)
-                     (inc (get model (first features) 1)))))))
+(defn train
+  ([features] (train features 1))
+  ([features weight] (train features weight {}))
+  ([features weight model]
+     (loop [features features
+            model (transient model)]
+       (if (empty? features)
+         (persistent! model)
+         (recur (rest features)
+                (assoc! model
+                        (first features)
+                        (+ weight (get model (first features) 1))))))))
 
+(defn train-map [maps]
+  (reduce
+   (fn [model {count :count words :words}]
+     (train words count model))
+   {} maps))
 
 (comment (def NWORDS (train (words (slurp "small.txt"))))
          (def NWORDS (train (words (slurp "big.txt"))))
@@ -31,7 +39,6 @@
        (mapcat words)
        (filter not-empty)
        (train)))
-
 
 (def alphabet (seq "abcdefghijklmnopqrstuvwxyz1234567890"))
 
@@ -57,12 +64,15 @@
   (let [candidates (or-ne (known [word])
                           (known (edits1 word))
                           (known-edits2 word))]
-    (or (->> candidates
-             (select-keys NWORDS)
-             (sort-by last)
-             (reverse)
-             (ffirst))
-        word)))
+    (->> candidates
+         (select-keys NWORDS)
+         (sort-by last)
+         (reverse)
+         (first))))
 
 (defn correct-phrase [s]
-  (map correct (words s)))
+  (->> (words s)
+       (map correct)
+       (filter not-empty)
+       (sort-by last)
+       (reverse)))

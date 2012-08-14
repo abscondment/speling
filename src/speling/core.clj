@@ -7,13 +7,19 @@
   (select-keys m
    (for [[k v :as p] m :when (pred p)] k)))
 
-
 (defn words [text]
   (-> text
       (str/lower-case)
       (str/replace #"[']+" "'")
       (str/replace #"[\-]+" "-")
-      (str/split #"[^a-z0-9'\-]+([^a-z0-9][^a-z0-9'\-]?)*")))
+      (str/split #"[^a-z0-9'\-]+([^a-z0-9][^a-z0-9'\-]?)*")
+      (#(filter not-empty %))))
+
+(def STOPWORDS
+  (set (str/split "a an at as by com do http in of net org the with www" #"[\s]+")))
+
+(defn remove-stopwords [coll]
+  (for [w coll :when (not (contains? STOPWORDS w))] w))
 
 (defn ngrams
   ([text] (ngrams text 5))
