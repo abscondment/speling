@@ -4,10 +4,7 @@
 ;; Implementation of the algorithm described by Peter Norvig
 ;; at http://norvig.com/spell-correct.html
 
-;; TODO:
-;;  * get words from the database
-;;  * training should *allow* for some DB-specific weight
-;;    to be applied at the word level
+(def ^{:private true} NWORDS (atom nil))
 
 (defn train
   ([features] (train features 1))
@@ -28,17 +25,17 @@
      (train words count model))
    {} maps))
 
-(comment (def NWORDS (train (words (slurp "small.txt"))))
-         (def NWORDS (train (words (slurp "big.txt"))))
-         (def NWORDS (train (words (slurp "/usr/share/dict/words")))))
 
-
-;; TODO: supply a custom list of words
-(def NWORDS
-  (->> (slurp "/usr/share/dict/words")
-       (mapcat words)
-       (filter not-empty)
-       (train)))
+;; E.G. (swap-nwords (slurp "/usr/share/dict/words"))
+(defmulti swap-nwords class)
+(defmethod swap-nwords String [text]
+  (swap-nwords
+   (fn [old]
+     (->> text
+          (words)
+          (train)))))
+(defmethod swap-nwords clojure.lang.AFunction [f & args]
+  (apply swap! NWORDS f args))
 
 (def alphabet (seq "abcdefghijklmnopqrstuvwxyz1234567890"))
 
@@ -55,17 +52,17 @@
 (defn known-edits2 [word]
   (->> (edits1 word)
        (mapcat edits1)
-       (filter NWORDS)
+       (filter @NWORDS)
        (set)))
 
-(defn known [words] (filter NWORDS words))
+(defn known [words] (filter @NWORDS words))
 
 (defn correct [word]
   (let [candidates (or-ne (known [word])
                           (known (edits1 word))
                           (known-edits2 word))]
     (->> candidates
-         (select-keys NWORDS)
+         (select-keys @NWORDS)
          (sort-by last)
          (reverse)
          (first))))
