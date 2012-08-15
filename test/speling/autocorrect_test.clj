@@ -50,3 +50,16 @@
           "bar"   (+ 1 1 1.25 2)
           "baz"   (+ 1 1 1.25)
           "bingo" (+ 1 1)})))
+
+(deftest correct-results
+  (let [_ (swap-nwords "foo bar bar baz bingo")
+        input {"fool" "foo" ;; single edit
+               "binge" "bingo" ;; single edit
+               "bigot" "bingo" ;; two edits
+               "bat" "bar" ;; weight-based choice
+               "haz" "baz" ;; another single edit
+               "marmelade" nil ;; too many changes
+               }]
+    (doseq [[original correction] input]
+      (is (= (first (correct original)) correction)))))
+
